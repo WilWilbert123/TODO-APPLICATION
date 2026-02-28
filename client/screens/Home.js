@@ -1,8 +1,15 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux'; // ✅ Added Redux hooks
+import { logout } from '../redux/store'; // ✅ Added logout action
 import * as api from '../services/api';
-
 const Home = () => {
+  const dispatch = useDispatch();
+
+  // ✅ Replace mockUserId with the user from Redux store
+  const user = useSelector((state) => state.tasks.user);
+
   const [tasks, setTasks] = useState([]);
   const [taskName, setTaskName] = useState('');
   const [priority, setPriority] = useState('Medium');
@@ -12,13 +19,17 @@ const Home = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentText, setCommentText] = useState('');
 
-  const mockUserId = "user_001";
-
-  useEffect(() => { loadTasks(); }, []);
+  // ✅ Fetch tasks whenever the component loads or user changes
+  useEffect(() => {
+    if (user) {
+      loadTasks();
+    }
+  }, [user]);
 
   const loadTasks = async () => {
     try {
-      const response = await api.getTasks(mockUserId);
+      // ✅ Use the dynamic 'user' from Redux for the API call
+      const response = await api.getTasks(user);
       setTasks(response.data);
 
       // Keep the modal's data in sync if it's open
@@ -26,7 +37,9 @@ const Home = () => {
         const updated = response.data.find(t => t._id === selectedTask._id);
         if (updated) setSelectedTask(updated);
       }
-    } catch (err) { console.log("Fetch error:", err); }
+    } catch (err) {
+      console.log("Fetch error:", err);
+    }
   };
 
   // --- TASK CRUD ---
@@ -35,7 +48,7 @@ const Home = () => {
     try {
       await api.createTask({
         title: taskName,
-        userId: mockUserId,
+        userId: user, // ✅ Set userId based on logged-in user
         priority: priority
       });
       setTaskName('');
@@ -54,13 +67,13 @@ const Home = () => {
   const handleEditTaskName = (item) => {
     Alert.prompt("Edit Task", "Update task title:", [
       { text: "Cancel", style: "cancel" },
-      { 
-        text: "Update", 
+      {
+        text: "Update",
         onPress: async (newName) => {
           if (!newName) return;
           await api.updateTask(item._id, { title: newName });
           loadTasks();
-        } 
+        }
       }
     ], "plain-text", item.title);
   };
@@ -69,24 +82,30 @@ const Home = () => {
   const handleAddComment = async () => {
     if (!commentText) return;
     try {
-      const response = await api.addComment(selectedTask._id, commentText);
+      // ✅ Automatically prefix the comment with the user's name
+      const commentWithAuthor = `${user}: ${commentText}`;
+
+      const response = await api.addComment(selectedTask._id, commentWithAuthor);
       setSelectedTask(response.data); // Update modal immediately
       setCommentText('');
-      loadTasks(); 
-    } catch (err) { Alert.alert("Error", "Could not add comment"); }
+      loadTasks();
+    } catch (err) {
+      Alert.alert("Error", "Could not add comment");
+    }
   };
 
   const handleEditComment = (commentId, oldText) => {
     Alert.prompt("Edit Comment", "Update your comment:", [
       { text: "Cancel", style: "cancel" },
-      { 
-        text: "Save", 
+      {
+        text: "Save",
         onPress: async (newText) => {
           if (!newText) return;
+          // Note: If you want to keep the "Name: " prefix, handle it here
           const response = await api.updateComment(selectedTask._id, commentId, newText);
           setSelectedTask(response.data);
           loadTasks();
-        } 
+        }
       }
     ], "plain-text", oldText);
   };
@@ -94,16 +113,35 @@ const Home = () => {
   const handleDeleteComment = async (commentId) => {
     try {
       const response = await api.deleteComment(selectedTask._id, commentId);
-      setSelectedTask(response.data.task); 
+      setSelectedTask(response.data.task);
       loadTasks();
-    } catch (err) { Alert.alert("Error", "Could not delete comment"); }
+    } catch (err) {
+      Alert.alert("Error", "Could not delete comment");
+    }
   };
 
   const completedCount = tasks.filter(t => t.completed).length;
-
+  const getPriorityColor = (p) => {
+    switch (p) {
+      case 'High': return '#f2baba';   // Yellow
+      case 'Medium': return '#eaefba'; // Green
+      case 'Low': return '#c3f0c9';    // Red
+      default: return '#ffffff';
+    }
+  };
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Todo List</Text>
+      {/* ✅ Added Header with Username and Logout */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.title}>Todo List</Text>
+          <Text style={styles.userText}> {user}</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => dispatch(logout())}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.stats}>Completed: {completedCount} / {tasks.length}</Text>
 
       {/* Priority Selector */}
@@ -137,22 +175,21 @@ const Home = () => {
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
           <View style={styles.taskItem}>
-            {/* 1. CHECKBOX */}
             <TouchableOpacity onPress={() => toggleComplete(item)}>
               <Text style={{ fontSize: 22, marginRight: 10 }}>
                 {item.completed ? "✅" : "⬜"}
               </Text>
             </TouchableOpacity>
 
-            {/* 2. TEXT (Click to Edit Task Name) */}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => handleEditTaskName(item)}>
               <Text style={[styles.taskText, item.completed && styles.done]}>
                 {item.title}
               </Text>
-              <Text style={styles.taskSubtext}>{item.priority} Priority</Text>
+              <Text style={[styles.taskSubtext, { color: getPriorityColor(item.priority) }]}>
+                {item.priority} Priority
+              </Text>
             </TouchableOpacity>
 
-            {/* 3. COMMENT ICON */}
             <TouchableOpacity
               style={styles.commentBtn}
               onPress={() => { setSelectedTask(item); setShowModal(true); }}
@@ -160,9 +197,25 @@ const Home = () => {
               <Text style={{ color: '#2a9d7a' }}>💬 {item.comments?.length || 0}</Text>
             </TouchableOpacity>
 
-            {/* 4. DELETE TASK */}
-            <TouchableOpacity onPress={async () => { await api.deleteTask(item._id); loadTasks(); }}>
-              <Text style={{ color: 'red', fontWeight: 'bold', marginLeft: 15 }}>Del</Text>
+            <TouchableOpacity
+              onPress={async () => {
+                Alert.alert(
+                  "Delete Task",
+                  "Are you sure?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete", style: "destructive", onPress: async () => {
+                        await api.deleteTask(item._id);
+                        loadTasks();
+                      }
+                    }
+                  ]
+                );
+              }}
+              style={styles.deleteBtn}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#ff4444" />
             </TouchableOpacity>
           </View>
         )}
@@ -183,7 +236,7 @@ const Home = () => {
                       <Text style={{ color: 'blue', fontSize: 12, marginRight: 15 }}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => handleDeleteComment(c._id)}>
-                      <Text style={{ color: 'red', fontSize: 12 }}>Remove</Text>
+                      <Text style={{ color: 'orange', fontSize: 12 }}>Remove</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -217,19 +270,24 @@ export default Home;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: '#151414' },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
-  stats: { fontSize: 16, color: '#2a9d7a', marginBottom: 15 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  userText: { color: '#2a9d7a', fontSize: 14, fontWeight: '500' },
+  logoutBtn: { padding: 8, backgroundColor: '#331111', borderRadius: 5, position: 'absolute', right: 0, top: -35 },
+  logoutText: { color: '#fefefe', fontWeight: 'bold', fontSize: 12 },
+  stats: { fontSize: 14, color: '#aaa', marginBottom: 5 },
   priorityRow: { flexDirection: 'row', marginBottom: 10, gap: 10 },
   pBtn: { padding: 8, borderRadius: 5, backgroundColor: '#333' },
   pBtnActive: { backgroundColor: '#2a9d7a' },
   inputContainer: { flexDirection: 'row', marginBottom: 20 },
   input: { flex: 1, backgroundColor: '#222', color: '#fff', padding: 12, borderRadius: 5 },
   addButton: { backgroundColor: '#2a9d7a', padding: 12, marginLeft: 10, borderRadius: 5, justifyContent: 'center' },
-  taskItem: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#fff', borderRadius: 10, marginBottom: 10 },
-  taskText: { fontSize: 16, fontWeight: '600', color: '#151414' },
-  taskSubtext: { fontSize: 12, color: '#666' },
+  taskItem: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: '#180a0a00', borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: '#676363' },
+  taskText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
+  taskSubtext: { fontSize: 12, color: '#f5f6f5' },
   done: { textDecorationLine: 'line-through', color: '#aaa' },
-  commentBtn: { backgroundColor: '#e8f5e9', padding: 5, borderRadius: 5, marginLeft: 10 },
+  commentBtn: { padding: 5, borderRadius: 5, marginLeft: 10 },
+  deleteBtn: { padding: 5, marginLeft: 10, justifyContent: 'center', alignItems: 'center', },
 
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
