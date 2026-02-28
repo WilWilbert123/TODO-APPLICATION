@@ -10,5 +10,5 @@ export const deleteTask = (id) => axios.delete(`${API_URL}/${id}`);
 
 // Comment Routes
 export const addComment = (taskId, text) => axios.post(`${API_URL}/${taskId}/comments`, { text });
-export const updateComment = (taskId, commentId, text) => axios.put(`${API_URL}/${taskId}/comments/${commentId}`, { text });
+export const updateComment = (taskId, commentId, text) =>  axios.put(`${API_URL}/${taskId}/comments/${commentId}`, { text });
 export const deleteComment = (taskId, commentId) => axios.delete(`${API_URL}/${taskId}/comments/${commentId}`);
