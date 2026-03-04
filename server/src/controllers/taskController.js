@@ -5,7 +5,7 @@ exports.getTasks = async (req, res) => {
   try {
     const priorityOrder = { High: 1, Medium: 2, Low: 3 };
     let tasks = await Task.find({ userId: req.query.userId });
-    // This sorting logic covers your exam requirement for Priority and Name sorting
+    // Sorting
     tasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority] || a.title.localeCompare(b.title));
     res.json(tasks);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -30,7 +30,7 @@ exports.deleteTask = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Safety check: if id is "undefined" or malformed, don't let it reach the DB
+  
     if (!id || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid or missing Task ID" });
     }
