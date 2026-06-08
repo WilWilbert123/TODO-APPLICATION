@@ -51,7 +51,7 @@ const Home = () => {
 
   const handleDeleteComment = async (commentId) => {
     const taskId = selectedTask?._id?.$oid || selectedTask?._id;
-    const cId = commentId?.$oid || commentId; // Handle nested comment ID
+    const cId = commentId?.$oid || commentId; 
     if (!taskId || !cId) return;
 
     try {
