@@ -31,7 +31,7 @@ const Login = () => {
       <StatusBar barStyle="light-content" />
       
       <View style={styles.innerContainer}>
-        {/* LOGO / ICON SECTION */}
+        {/* LOGO ICon / ICON SECTION */}
         <View style={styles.logoContainer}>
           <View style={styles.iconCircle}>
             <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={60} color="#2a9d7a" />
