@@ -26,7 +26,7 @@ const Home = () => {
 
   useEffect(() => { loadTasks(); }, []);
 
-  // Sync selected task with updated task list (for comments)
+  
   useEffect(() => {
     const selectedId = selectedTask?._id?.$oid || selectedTask?._id;
     if (selectedId && tasks.length > 0) {
